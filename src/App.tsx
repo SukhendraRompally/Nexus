@@ -46,7 +46,7 @@ function OnlineRoomFlow({ roomId }: { roomId: string }) {
         roomId={roomId}
         room={room}
         onStart={() => startGame(roomId, room)}
-        onClaimSlot={slotIndex => claimSlot(roomId, slotIndex)}
+        onClaimSlot={(slotIndex, name) => claimSlot(roomId, slotIndex, name)}
       />
     );
   }
@@ -56,7 +56,7 @@ function OnlineRoomFlow({ roomId }: { roomId: string }) {
       <ClaimSeat
         roomId={roomId}
         room={room}
-        onClaim={slotIndex => claimSlot(roomId, slotIndex)}
+        onClaim={(slotIndex, name) => claimSlot(roomId, slotIndex, name)}
       />
     );
   }

@@ -172,10 +172,10 @@ export function useRoom(roomId: string | null) {
   }, [myId]);
 
   // ── Claim a slot (guest) ─────────────────────────────────────────────────
-  const claimSlot = useCallback(async (roomId: string, slotIndex: number) => {
+  const claimSlot = useCallback(async (roomId: string, slotIndex: number, playerName: string) => {
     if (!db || !room) return;
     const updatedSlots = room.slots.map((s, i) =>
-      i === slotIndex ? { ...s, claimedBy: myId } : s
+      i === slotIndex ? { ...s, claimedBy: myId, name: playerName.trim() || s.name } : s
     );
     await set(ref(db, `rooms/${roomId}/slots`), updatedSlots);
     setClaimedSlot(roomId, slotIndex);
