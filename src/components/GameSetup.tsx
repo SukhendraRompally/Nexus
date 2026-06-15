@@ -216,6 +216,9 @@ export function GameSetup({ onStart, onCreateOnline, isFirebaseConfigured, creat
               PLAY LOCAL →
             </button>
 
+            {!isFirebaseConfigured && (
+              <p className="text-red-400 text-xs text-center">⚠ Firebase env vars not detected — online mode unavailable</p>
+            )}
             {isFirebaseConfigured && onCreateOnline && (
               <button
                 onClick={() => {

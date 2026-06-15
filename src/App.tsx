@@ -193,9 +193,14 @@ export default function App() {
     players: { name: string; isBot: boolean }[],
     config: GameConfig,
   ) => {
-    const roomId = await createRoom(players, config);
-    window.history.pushState(null, '', `/room/${roomId}`);
-    setPath(`/room/${roomId}`);
+    try {
+      const roomId = await createRoom(players, config);
+      window.history.pushState(null, '', `/room/${roomId}`);
+      setPath(`/room/${roomId}`);
+    } catch (e: any) {
+      alert(`Failed to create room: ${e?.message ?? e}\n\nCheck that your Firebase env vars are set in Vercel and that Database Rules allow reads/writes.`);
+      throw e;
+    }
   }, [createRoom]);
 
   const roomId = getRoomIdFromURL();
