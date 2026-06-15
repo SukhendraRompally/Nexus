@@ -142,7 +142,7 @@ export function useRoom(roomId: string | null) {
     slots: { name: string; isBot: boolean }[],
     config: GameConfig,
   ): Promise<string> => {
-    if (!db) throw new Error('Firebase not configured');
+    if (!db) throw new Error('Firebase db is null — env vars missing or misconfigured');
 
     const id = nanoid(8).toUpperCase();
     const roomData: RoomData = {
@@ -152,14 +152,22 @@ export function useRoom(roomId: string | null) {
       slots: slots.map((s) => ({
         name: s.name,
         isBot: s.isBot,
-        // All slots start unclaimed (host will claim one too); bots are marked as 'bot'
         claimedBy: s.isBot ? 'bot' : null,
       })),
       state: null,
     };
 
-    await set(ref(db, `rooms/${id}`), roomData);
-    // Don't pre-claim for host — they'll claim a seat like everyone else
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(
+        'Firebase write timed out after 10s.\n\nCheck:\n1. Realtime Database is created in Firebase Console\n2. Database Rules allow .read/.write\n3. VITE_FIREBASE_DATABASE_URL is correct in Vercel env vars'
+      )), 10000)
+    );
+
+    await Promise.race([
+      set(ref(db, `rooms/${id}`), roomData),
+      timeout,
+    ]);
+
     return id;
   }, [myId]);
 
