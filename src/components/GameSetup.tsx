@@ -17,9 +17,10 @@ interface GameSetupProps {
   onStart: (players: { name: string; isBot: boolean }[], config: GameConfig) => void;
   onCreateOnline?: (players: { name: string; isBot: boolean }[], config: GameConfig) => void;
   isFirebaseConfigured?: boolean;
+  creatingRoom?: boolean;
 }
 
-export function GameSetup({ onStart, onCreateOnline, isFirebaseConfigured }: GameSetupProps) {
+export function GameSetup({ onStart, onCreateOnline, isFirebaseConfigured, creatingRoom }: GameSetupProps) {
   const [playerCount, setPlayerCount] = useState(2);
   const [slots, setSlots] = useState<PlayerSlot[]>([
     { name: '', isBot: false },
@@ -218,19 +219,20 @@ export function GameSetup({ onStart, onCreateOnline, isFirebaseConfigured }: Gam
             {isFirebaseConfigured && onCreateOnline && (
               <button
                 onClick={() => {
+                  if (creatingRoom) return;
                   const players = slots.slice(0, playerCount).map((s, i) => ({
                     name: s.isBot ? `Bot ${i+1}` : (s.name.trim().slice(0,15) || `Colonist ${i+1}`),
                     isBot: s.isBot,
                   }));
                   onCreateOnline(players, { vpThreshold, timerSeconds });
                 }}
-                disabled={humanCount === 0}
+                disabled={humanCount === 0 || creatingRoom}
                 className={`w-full py-3 rounded-xl font-black text-sm transition-all border-2 ${
-                  humanCount > 0
+                  humanCount > 0 && !creatingRoom
                     ? 'border-blue-500/60 text-blue-300 hover:bg-blue-900/20 active:scale-95'
                     : 'border-slate-700 text-slate-600 cursor-not-allowed'
                 }`}>
-                🌐 CREATE ONLINE ROOM →
+                {creatingRoom ? '⏳ Creating room…' : '🌐 CREATE ONLINE ROOM →'}
               </button>
             )}
           </div>

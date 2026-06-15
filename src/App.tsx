@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import './index.css';
 import { useGame } from './hooks/useGame';
 import { useRoom } from './hooks/useRoom';
@@ -15,11 +15,6 @@ import type { GameState } from './types';
 function getRoomIdFromURL(): string | null {
   const m = window.location.pathname.match(/^\/room\/([A-Za-z0-9]+)$/);
   return m ? m[1].toUpperCase() : null;
-}
-
-function navigateTo(path: string) {
-  window.history.pushState(null, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
 // ── Online Room Flow ──────────────────────────────────────────────────────────
@@ -84,7 +79,7 @@ function OnlineRoomFlow({ roomId }: { roomId: string }) {
         gameState={gameState}
         mySlotIndex={mySlotIndex}
         onlineDispatch={onlineDispatch}
-        onRestart={() => navigateTo('/')}
+        onRestart={() => { window.location.href = '/'; }}
       />
     );
   }
@@ -127,7 +122,11 @@ function OnlineGame({
 
 // ── Local Game Flow ───────────────────────────────────────────────────────────
 
-function LocalGameFlow() {
+function LocalGameFlow({
+  onCreateOnline,
+}: {
+  onCreateOnline: (players: { name: string; isBot: boolean }[], config: GameConfig) => Promise<void>;
+}) {
   const {
     state, dispatch, startGame,
     toggleToken, confirmTakeTokens, setActionMode, cancelAction,
@@ -135,20 +134,27 @@ function LocalGameFlow() {
     resetToSetup,
   } = useGame();
 
+  const [creatingRoom, setCreatingRoom] = useState(false);
+
   const handleCreateOnline = useCallback(async (
     players: { name: string; isBot: boolean }[],
     config: GameConfig,
   ) => {
-    (window as any).__pendingOnlineCreate = { players, config };
-    window.dispatchEvent(new CustomEvent('nexus-create-online'));
-  }, []);
+    setCreatingRoom(true);
+    try {
+      await onCreateOnline(players, config);
+    } finally {
+      setCreatingRoom(false);
+    }
+  }, [onCreateOnline]);
 
   if (state.phase === 'setup') {
     return (
       <GameSetup
         onStart={startGame}
-        onCreateOnline={handleCreateOnline}
+        onCreateOnline={isFirebaseConfigured ? handleCreateOnline : undefined}
         isFirebaseConfigured={isFirebaseConfigured}
+        creatingRoom={creatingRoom}
       />
     );
   }
@@ -175,30 +181,24 @@ function LocalGameFlow() {
 export default function App() {
   const { createRoom } = useRoom(null);
 
+  // Re-render on back/forward navigation
+  const [, setPath] = useState(window.location.pathname);
   useEffect(() => {
-    const handler = () => window.location.reload();
+    const handler = () => setPath(window.location.pathname);
     window.addEventListener('popstate', handler);
     return () => window.removeEventListener('popstate', handler);
   }, []);
 
-  useEffect(() => {
-    const handler = async () => {
-      const pending = (window as any).__pendingOnlineCreate;
-      if (!pending) return;
-      delete (window as any).__pendingOnlineCreate;
-      try {
-        const roomId = await createRoom(pending.players, pending.config);
-        navigateTo(`/room/${roomId}`);
-      } catch (e) {
-        alert('Failed to create room. Check your Firebase configuration.');
-        console.error(e);
-      }
-    };
-    window.addEventListener('nexus-create-online', handler);
-    return () => window.removeEventListener('nexus-create-online', handler);
+  const handleCreateOnline = useCallback(async (
+    players: { name: string; isBot: boolean }[],
+    config: GameConfig,
+  ) => {
+    const roomId = await createRoom(players, config);
+    window.history.pushState(null, '', `/room/${roomId}`);
+    setPath(`/room/${roomId}`);
   }, [createRoom]);
 
   const roomId = getRoomIdFromURL();
   if (roomId) return <OnlineRoomFlow roomId={roomId} />;
-  return <LocalGameFlow />;
+  return <LocalGameFlow onCreateOnline={handleCreateOnline} />;
 }
